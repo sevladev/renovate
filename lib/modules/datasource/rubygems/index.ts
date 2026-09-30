@@ -1,13 +1,12 @@
 import { Marshal } from '@qnighy/marshal';
 import type { ZodError } from 'zod/v4';
 import { logger } from '../../../logger/index.ts';
-import type { NonEmptyArray } from '../../../types/index.ts';
 import { Http, HttpError } from '../../../util/http/index.ts';
 import { AsyncResult, Result } from '../../../util/result.ts';
 import { getQueryString, joinUrlParts, parseUrl } from '../../../util/url.ts';
 import * as rubyVersioning from '../../versioning/ruby/index.ts';
-import { RegistryDatasource } from '../datasource.ts';
-import type { RegistryGetReleasesConfig, ReleaseResult } from '../types.ts';
+import { Datasource } from '../datasource.ts';
+import type { GetReleasesConfig, ReleaseResult } from '../types.ts';
 import { getV1Releases } from './common.ts';
 import { MetadataCache } from './metadata-cache.ts';
 import { GemInfo, MarshalledVersionInfo } from './schema.ts';
@@ -26,7 +25,7 @@ function unlessServerSide<
   return cb();
 }
 
-export class RubygemsDatasource extends RegistryDatasource {
+export class RubygemsDatasource extends Datasource {
   static readonly id = 'rubygems';
 
   private metadataCache: MetadataCache;
@@ -37,7 +36,7 @@ export class RubygemsDatasource extends RegistryDatasource {
     this.metadataCache = new MetadataCache(this.http);
   }
 
-  override getDefaultRegistryUrls(_packageName: string): NonEmptyArray<string> {
+  override getDefaultRegistryUrls(_packageName: string): string[] {
     return ['https://rubygems.org'];
   }
 
@@ -57,7 +56,12 @@ export class RubygemsDatasource extends RegistryDatasource {
   private async fetchReleases({
     packageName,
     registryUrl,
-  }: RegistryGetReleasesConfig): Promise<ReleaseResult | null> {
+  }: GetReleasesConfig): Promise<ReleaseResult | null> {
+    /* v8 ignore next -- should never happen */
+    if (!registryUrl) {
+      return null;
+    }
+
     const registryHostname = parseUrl(registryUrl)?.hostname;
 
     let result: AsyncResult<ReleaseResult, Error | string>;
@@ -99,13 +103,12 @@ export class RubygemsDatasource extends RegistryDatasource {
     return null;
   }
 
-  getReleases(
-    config: RegistryGetReleasesConfig,
-  ): Promise<ReleaseResult | null> {
+  getReleases(config: GetReleasesConfig): Promise<ReleaseResult | null> {
     const registryHostname = parseUrl(config.registryUrl)?.hostname;
     return this.cached(
       {
-        key: `releases:${config.registryUrl}:${config.packageName}`,
+        // TODO: types (#22198)
+        key: `releases:${config.registryUrl!}:${config.packageName}`,
         fallback: true,
         cacheable: registryHostname === 'rubygems.org',
       },

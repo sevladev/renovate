@@ -1,6 +1,4 @@
-import type { NonEmptyArray } from '../../../types/index.ts';
-
-export const defaultRegistryUrls: NonEmptyArray<string> = [
+export const defaultRegistryUrls = [
   'https://jsr.io/',
   // the "https://npm.jsr.io" npm compatible registry api url
   // it contains more information than above, but less accuracy

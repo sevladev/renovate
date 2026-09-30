@@ -1,6 +1,5 @@
 import { isArray } from '@sindresorhus/is';
 import { logger } from '../../../logger/index.ts';
-import type { NonEmptyArray } from '../../../types/index.ts';
 import { detectPlatform } from '../../../util/common.ts';
 import { parseGitUrl } from '../../../util/git/url.ts';
 import { GithubHttp } from '../../../util/http/github.ts';
@@ -8,11 +7,11 @@ import { fromBase64 } from '../../../util/string.ts';
 import { joinUrlParts } from '../../../util/url.ts';
 import { GithubContentResponse } from '../../platform/github/schema.ts';
 import semver from '../../versioning/semver/index.ts';
-import { RegistryDatasource } from '../datasource.ts';
-import type { RegistryGetReleasesConfig, ReleaseResult } from '../types.ts';
+import { Datasource } from '../datasource.ts';
+import type { GetReleasesConfig, ReleaseResult } from '../types.ts';
 import { BitriseStepFile } from './schema.ts';
 
-export class BitriseDatasource extends RegistryDatasource<GithubHttp> {
+export class BitriseDatasource extends Datasource<GithubHttp> {
   static readonly id = 'bitrise';
 
   constructor() {
@@ -23,7 +22,7 @@ export class BitriseDatasource extends RegistryDatasource<GithubHttp> {
     return true;
   }
 
-  override getDefaultRegistryUrls(_packageName: string): NonEmptyArray<string> {
+  override getDefaultRegistryUrls(_packageName: string): string[] {
     return ['https://github.com/bitrise-io/bitrise-steplib.git'];
   }
 
@@ -37,7 +36,12 @@ export class BitriseDatasource extends RegistryDatasource<GithubHttp> {
   private async fetchReleases({
     packageName,
     registryUrl,
-  }: RegistryGetReleasesConfig): Promise<ReleaseResult | null> {
+  }: GetReleasesConfig): Promise<ReleaseResult | null> {
+    /* v8 ignore next -- should never happen */
+    if (!registryUrl) {
+      return null;
+    }
+
     const parsedUrl = parseGitUrl(registryUrl);
     if (detectPlatform(registryUrl) !== 'github') {
       logger.once.warn(
@@ -119,9 +123,7 @@ export class BitriseDatasource extends RegistryDatasource<GithubHttp> {
     };
   }
 
-  getReleases(
-    config: RegistryGetReleasesConfig,
-  ): Promise<ReleaseResult | null> {
+  getReleases(config: GetReleasesConfig): Promise<ReleaseResult | null> {
     return this.cached(
       {
         key: `${config.registryUrl}/${config.packageName}`,

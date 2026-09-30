@@ -16,7 +16,6 @@ describe('modules/datasource/github-digest/index', () => {
 
   describe('getReleases', () => {
     const packageName = 'some/repo';
-    const registryUrl = 'https://github.com';
 
     it('returns tags and branches merged', async () => {
       vi.spyOn(githubGraphql, 'queryTags').mockResolvedValueOnce([
@@ -149,9 +148,9 @@ describe('modules/datasource/github-digest/index', () => {
       );
       vi.spyOn(githubGraphql, 'queryBranches').mockResolvedValueOnce([]);
 
-      await expect(
-        github.getReleases({ packageName, registryUrl }),
-      ).rejects.toThrow('Tags query failed');
+      await expect(github.getReleases({ packageName })).rejects.toThrow(
+        'Tags query failed',
+      );
     });
 
     it('throws when branches query fails', async () => {
@@ -160,15 +159,14 @@ describe('modules/datasource/github-digest/index', () => {
         new Error('Branches query failed'),
       );
 
-      await expect(
-        github.getReleases({ packageName, registryUrl }),
-      ).rejects.toThrow('Branches query failed');
+      await expect(github.getReleases({ packageName })).rejects.toThrow(
+        'Branches query failed',
+      );
     });
   });
 
   describe('getDigest', () => {
     const packageName = 'some/repo';
-    const registryUrl = 'https://github.com';
 
     it('returns tag digest when tag exists', async () => {
       vi.spyOn(githubGraphql, 'queryTags').mockResolvedValueOnce([
@@ -180,10 +178,7 @@ describe('modules/datasource/github-digest/index', () => {
         },
       ]);
 
-      const res = await github.getDigest(
-        { packageName, registryUrl },
-        'v1.0.0',
-      );
+      const res = await github.getDigest({ packageName }, 'v1.0.0');
 
       expect(res).toBe('tag-hash');
     });
@@ -199,7 +194,7 @@ describe('modules/datasource/github-digest/index', () => {
         },
       ]);
 
-      const res = await github.getDigest({ packageName, registryUrl }, 'v4');
+      const res = await github.getDigest({ packageName }, 'v4');
 
       expect(res).toBe('branch-hash');
     });
@@ -214,7 +209,7 @@ describe('modules/datasource/github-digest/index', () => {
         },
       ]);
 
-      const res = await github.getDigest({ packageName, registryUrl }, 'v4');
+      const res = await github.getDigest({ packageName }, 'v4');
 
       expect(res).toBe('tag-hash');
     });
@@ -223,19 +218,13 @@ describe('modules/datasource/github-digest/index', () => {
       vi.spyOn(githubGraphql, 'queryTags').mockResolvedValueOnce([]);
       vi.spyOn(githubGraphql, 'queryBranches').mockResolvedValueOnce([]);
 
-      const res = await github.getDigest(
-        { packageName, registryUrl },
-        'nonexistent',
-      );
+      const res = await github.getDigest({ packageName }, 'nonexistent');
 
       expect(res).toBeNull();
     });
 
     it('returns null when newValue is undefined', async () => {
-      const res = await github.getDigest(
-        { packageName, registryUrl },
-        undefined,
-      );
+      const res = await github.getDigest({ packageName }, undefined);
 
       expect(res).toBeNull();
     });

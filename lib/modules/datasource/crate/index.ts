@@ -2,7 +2,6 @@ import { isBoolean } from '@sindresorhus/is';
 import upath from 'upath';
 import { GlobalConfig } from '../../../config/global.ts';
 import { logger } from '../../../logger/index.ts';
-import type { NonEmptyArray } from '../../../types/index.ts';
 import * as memCache from '../../../util/cache/memory/index.ts';
 import * as packageCache from '../../../util/cache/package/index.ts';
 import { withCache } from '../../../util/cache/package/with-cache.ts';
@@ -17,11 +16,11 @@ import { Json } from '../../../util/schema-utils/index.ts';
 import { asTimestamp } from '../../../util/timestamp.ts';
 import { joinUrlParts, parseUrl } from '../../../util/url.ts';
 import * as cargoVersioning from '../../versioning/cargo/index.ts';
-import { RegistryDatasource } from '../datasource.ts';
+import { Datasource } from '../datasource.ts';
 import type {
+  GetReleasesConfig,
   PostprocessReleaseConfig,
   PostprocessReleaseResult,
-  RegistryGetReleasesConfig,
   Release,
   ReleaseResult,
 } from '../types.ts';
@@ -43,14 +42,14 @@ type CloneResult =
       err?: undefined;
     };
 
-export class CrateDatasource extends RegistryDatasource {
+export class CrateDatasource extends Datasource {
   static readonly id = 'crate';
 
   constructor() {
     super(CrateDatasource.id);
   }
 
-  override getDefaultRegistryUrls(_packageName: string): NonEmptyArray<string> {
+  override getDefaultRegistryUrls(_packageName: string): string[] {
     return ['sparse+https://index.crates.io/'];
   }
 
@@ -67,7 +66,15 @@ export class CrateDatasource extends RegistryDatasource {
   private async _getReleases({
     packageName,
     registryUrl,
-  }: RegistryGetReleasesConfig): Promise<ReleaseResult | null> {
+  }: GetReleasesConfig): Promise<ReleaseResult | null> {
+    /* v8 ignore if -- should never happen */
+    if (!registryUrl) {
+      logger.warn(
+        'crate datasource: No registryUrl specified, cannot perform getReleases',
+      );
+      return null;
+    }
+
     const registryInfo = await CrateDatasource.fetchRegistryInfo({
       packageName,
       registryUrl,
@@ -139,12 +146,11 @@ export class CrateDatasource extends RegistryDatasource {
     return result;
   }
 
-  getReleases(
-    config: RegistryGetReleasesConfig,
-  ): Promise<ReleaseResult | null> {
+  getReleases(config: GetReleasesConfig): Promise<ReleaseResult | null> {
     return withCache(
       {
         namespace: `datasource-${CrateDatasource.id}`,
+        // TODO: types (#22198)
         key: `${config.registryUrl}/${config.packageName}`,
         cacheable: CrateDatasource.isCratesIo(config.registryUrl),
         fallback: true,
@@ -395,7 +401,12 @@ export class CrateDatasource extends RegistryDatasource {
   private static async fetchRegistryInfo({
     packageName,
     registryUrl,
-  }: RegistryGetReleasesConfig): Promise<RegistryInfo | null> {
+  }: GetReleasesConfig): Promise<RegistryInfo | null> {
+    /* v8 ignore next -- should never happen */
+    if (!registryUrl) {
+      return null;
+    }
+
     const isSparseRegistry = CrateDatasource.isSparseRegistry(registryUrl);
     const registryFetchUrl = isSparseRegistry
       ? registryUrl.replace(regEx(/^sparse\+/), '')

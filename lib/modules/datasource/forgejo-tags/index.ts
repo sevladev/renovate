@@ -1,5 +1,4 @@
 import type { DatasourceName } from '../../../datasource-list.generated.ts';
-import type { NonEmptyArray } from '../../../types/index.ts';
 import type { PackageCacheNamespace } from '../../../util/cache/package/types.ts';
 import { ForgejoHttp } from '../../../util/http/forgejo.ts';
 import { GiteaTagsDatasource } from '../gitea-tags/index.ts';
@@ -11,11 +10,9 @@ import { GiteaTagsDatasource } from '../gitea-tags/index.ts';
 export class ForgejoTagsDatasource extends GiteaTagsDatasource {
   static override readonly id: DatasourceName = 'forgejo-tags';
 
-  static override readonly defaultRegistryUrls: NonEmptyArray<string> = [
-    'https://code.forgejo.org',
-  ];
+  static override readonly defaultRegistryUrls = ['https://code.forgejo.org'];
 
-  override getDefaultRegistryUrls(_packageName: string): NonEmptyArray<string> {
+  override getDefaultRegistryUrls(_packageName: string): string[] {
     return ForgejoTagsDatasource.defaultRegistryUrls;
   }
 

@@ -47,10 +47,7 @@ describe('modules/datasource/typst/index', () => {
         const getCache = vi.spyOn(packageCache, 'get');
         const setCache = vi.spyOn(packageCache, 'setWithRawTtl');
 
-        const result = await new TypstDatasource().getReleases({
-          packageName,
-          registryUrl: 'https://packages.typst.org/preview/index.json',
-        });
+        const result = await new TypstDatasource().getReleases({ packageName });
 
         expect(result).toBeNull();
         expect(getCache).not.toHaveBeenCalled();

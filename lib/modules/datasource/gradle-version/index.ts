@@ -1,24 +1,19 @@
-import type { NonEmptyArray } from '../../../types/index.ts';
 import { withCache } from '../../../util/cache/package/with-cache.ts';
 import { regEx } from '../../../util/regex.ts';
 import { asTimestamp } from '../../../util/timestamp.ts';
 import * as gradleVersioning from '../../versioning/gradle/index.ts';
-import { RegistryDatasource } from '../datasource.ts';
-import type {
-  RegistryGetReleasesConfig,
-  Release,
-  ReleaseResult,
-} from '../types.ts';
+import { Datasource } from '../datasource.ts';
+import type { GetReleasesConfig, Release, ReleaseResult } from '../types.ts';
 import { GradleReleases } from './schema.ts';
 
-export class GradleVersionDatasource extends RegistryDatasource {
+export class GradleVersionDatasource extends Datasource {
   static readonly id = 'gradle-version';
 
   constructor() {
     super(GradleVersionDatasource.id);
   }
 
-  override getDefaultRegistryUrls(_packageName: string): NonEmptyArray<string> {
+  override getDefaultRegistryUrls(_packageName: string): string[] {
     return ['https://services.gradle.org/versions/all'];
   }
 
@@ -35,7 +30,12 @@ export class GradleVersionDatasource extends RegistryDatasource {
 
   private async _getReleases({
     registryUrl,
-  }: RegistryGetReleasesConfig): Promise<ReleaseResult | null> {
+  }: GetReleasesConfig): Promise<ReleaseResult | null> {
+    /* v8 ignore next -- should never happen */
+    if (!registryUrl) {
+      return null;
+    }
+
     const body = await this.fetchJson(registryUrl, GradleReleases);
     const releases = body
       .filter((release) => !release.snapshot && !release.nightly)
@@ -66,12 +66,11 @@ export class GradleVersionDatasource extends RegistryDatasource {
     return null;
   }
 
-  getReleases(
-    config: RegistryGetReleasesConfig,
-  ): Promise<ReleaseResult | null> {
+  getReleases(config: GetReleasesConfig): Promise<ReleaseResult | null> {
     return withCache(
       {
         namespace: `datasource-${GradleVersionDatasource.id}`,
+        // TODO: types (#22198)
         key: `${config.registryUrl}`,
         fallback: true,
       },
