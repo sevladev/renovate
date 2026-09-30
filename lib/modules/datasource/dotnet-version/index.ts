@@ -1,18 +1,13 @@
-import type { NonEmptyArray } from '../../../types/index.ts';
 import * as p from '../../../util/promises.ts';
-import { RegistryDatasource } from '../datasource.ts';
-import type {
-  RegistryGetReleasesConfig,
-  Release,
-  ReleaseResult,
-} from '../types.ts';
+import { Datasource } from '../datasource.ts';
+import type { GetReleasesConfig, Release, ReleaseResult } from '../types.ts';
 import {
   DotnetRuntimeReleases,
   DotnetSdkReleases,
   ReleasesIndex,
 } from './schema.ts';
 
-export class DotnetVersionDatasource extends RegistryDatasource {
+export class DotnetVersionDatasource extends Datasource {
   static readonly id = 'dotnet-version';
 
   constructor() {
@@ -23,7 +18,7 @@ export class DotnetVersionDatasource extends RegistryDatasource {
     return false;
   }
 
-  override getDefaultRegistryUrls(_packageName: string): NonEmptyArray<string> {
+  override getDefaultRegistryUrls(_packageName: string): string[] {
     return [
       'https://dotnetcli.blob.core.windows.net/dotnet/release-metadata/releases-index.json',
     ];
@@ -38,7 +33,7 @@ export class DotnetVersionDatasource extends RegistryDatasource {
 
   private async fetchReleases({
     packageName,
-  }: RegistryGetReleasesConfig): Promise<ReleaseResult | null> {
+  }: GetReleasesConfig): Promise<ReleaseResult | null> {
     if (!(packageName === 'dotnet-sdk' || packageName === 'dotnet-runtime')) {
       return null;
     }
@@ -68,9 +63,7 @@ export class DotnetVersionDatasource extends RegistryDatasource {
     }
   }
 
-  getReleases(
-    config: RegistryGetReleasesConfig,
-  ): Promise<ReleaseResult | null> {
+  getReleases(config: GetReleasesConfig): Promise<ReleaseResult | null> {
     return this.cached(
       {
         key: config.packageName,

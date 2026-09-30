@@ -1,11 +1,10 @@
-import type { NonEmptyArray } from '../../../types/index.ts';
 import { asTimestamp } from '../../../util/timestamp.ts';
 import * as Unity3dVersioning from '../../versioning/unity3d/index.ts';
-import { RegistryDatasource } from '../datasource.ts';
-import type { RegistryGetReleasesConfig, ReleaseResult } from '../types.ts';
+import { Datasource } from '../datasource.ts';
+import type { GetReleasesConfig, ReleaseResult } from '../types.ts';
 import { UnityReleasesJSON } from './schema.ts';
 
-export class Unity3dDatasource extends RegistryDatasource {
+export class Unity3dDatasource extends Datasource {
   static readonly baseUrl =
     'https://services.api.unity.com/unity/editor/release/v1/releases';
   static readonly homepage = 'https://unity.com/';
@@ -24,7 +23,7 @@ export class Unity3dDatasource extends RegistryDatasource {
 
   static readonly id = 'unity3d';
 
-  override getDefaultRegistryUrls(_packageName: string): NonEmptyArray<string> {
+  override getDefaultRegistryUrls(_packageName: string): string[] {
     return [Unity3dDatasource.streams.lts];
   }
 
@@ -57,10 +56,10 @@ export class Unity3dDatasource extends RegistryDatasource {
   }
 
   async getByStream(
-    registryUrl: string,
+    registryUrl: string | undefined,
     withHash: boolean,
   ): Promise<ReleaseResult | null> {
-    const translatedRegistryUrl = this.translateStream(registryUrl);
+    const translatedRegistryUrl = this.translateStream(registryUrl!);
 
     const isStable: boolean =
       translatedRegistryUrl === Unity3dDatasource.streams.lts;
@@ -103,16 +102,14 @@ export class Unity3dDatasource extends RegistryDatasource {
   private async fetchReleases({
     packageName,
     registryUrl,
-  }: RegistryGetReleasesConfig): Promise<ReleaseResult | null> {
+  }: GetReleasesConfig): Promise<ReleaseResult | null> {
     return await this.getByStream(
       registryUrl,
       packageName === 'm_EditorVersionWithRevision',
     );
   }
 
-  getReleases(
-    config: RegistryGetReleasesConfig,
-  ): Promise<ReleaseResult | null> {
+  getReleases(config: GetReleasesConfig): Promise<ReleaseResult | null> {
     return this.cached(
       {
         key: `${config.registryUrl}:${config.packageName}`,

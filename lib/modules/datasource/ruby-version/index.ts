@@ -1,6 +1,5 @@
 import { logger } from '../../../logger/index.ts';
 import { ExternalHostError } from '../../../types/errors/external-host-error.ts';
-import type { NonEmptyArray } from '../../../types/index.ts';
 import { coerceArray } from '../../../util/array.ts';
 import { parse } from '../../../util/html.ts';
 import type { HttpError } from '../../../util/http/index.ts';
@@ -9,17 +8,17 @@ import {
   isVersion,
   id as rubyVersioningId,
 } from '../../versioning/ruby/index.ts';
-import { RegistryDatasource } from '../datasource.ts';
-import type { RegistryGetReleasesConfig, ReleaseResult } from '../types.ts';
+import { Datasource } from '../datasource.ts';
+import type { GetReleasesConfig, ReleaseResult } from '../types.ts';
 
-export class RubyVersionDatasource extends RegistryDatasource {
+export class RubyVersionDatasource extends Datasource {
   static readonly id = 'ruby-version';
 
   constructor() {
     super(RubyVersionDatasource.id);
   }
 
-  override getDefaultRegistryUrls(_packageName: string): NonEmptyArray<string> {
+  override getDefaultRegistryUrls(_packageName: string): string[] {
     return ['https://www.ruby-lang.org/'];
   }
 
@@ -38,12 +37,13 @@ export class RubyVersionDatasource extends RegistryDatasource {
 
   private async fetchReleases({
     registryUrl,
-  }: RegistryGetReleasesConfig): Promise<ReleaseResult | null> {
+  }: GetReleasesConfig): Promise<ReleaseResult | null> {
     const res: ReleaseResult = {
       homepage: 'https://www.ruby-lang.org',
       sourceUrl: 'https://github.com/ruby/ruby',
       releases: [],
     };
+    // TODO: types (#22198)
     const rubyVersionsUrl = `${registryUrl}en/downloads/releases/`;
     try {
       const response = await this.http.getText(rubyVersionsUrl);
@@ -78,9 +78,7 @@ export class RubyVersionDatasource extends RegistryDatasource {
     return res;
   }
 
-  getReleases(
-    config: RegistryGetReleasesConfig,
-  ): Promise<ReleaseResult | null> {
+  getReleases(config: GetReleasesConfig): Promise<ReleaseResult | null> {
     return this.cached(
       {
         key: 'all',
