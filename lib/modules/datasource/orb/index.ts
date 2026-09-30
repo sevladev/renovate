@@ -1,12 +1,11 @@
 import { logger } from '../../../logger/index.ts';
-import type { NonEmptyArray } from '../../../types/index.ts';
 import { withCache } from '../../../util/cache/package/with-cache.ts';
 import { getQueryString, joinUrlParts } from '../../../util/url.ts';
-import { RegistryDatasource } from '../datasource.ts';
-import type { RegistryGetReleasesConfig, ReleaseResult } from '../types.ts';
+import { Datasource } from '../datasource.ts';
+import type { GetReleasesConfig, ReleaseResult } from '../types.ts';
 import { OrbPackagesResponse } from './schema.ts';
 
-export class OrbDatasource extends RegistryDatasource {
+export class OrbDatasource extends Datasource {
   static readonly id = 'orb';
 
   constructor() {
@@ -17,7 +16,7 @@ export class OrbDatasource extends RegistryDatasource {
     return true;
   }
 
-  override getDefaultRegistryUrls(_packageName: string): NonEmptyArray<string> {
+  override getDefaultRegistryUrls(_packageName: string): string[] {
     return ['https://circleci.com/'];
   }
   override readonly registryStrategy = 'hunt';
@@ -29,7 +28,11 @@ export class OrbDatasource extends RegistryDatasource {
   private async _getReleases({
     packageName,
     registryUrl,
-  }: RegistryGetReleasesConfig): Promise<ReleaseResult | null> {
+  }: GetReleasesConfig): Promise<ReleaseResult | null> {
+    /* v8 ignore next -- should never happen */
+    if (!registryUrl) {
+      return null;
+    }
     const url = `${joinUrlParts(
       registryUrl,
       'api/v3/orb/packages',
@@ -56,7 +59,7 @@ export class OrbDatasource extends RegistryDatasource {
   }
 
   override getReleases(
-    config: RegistryGetReleasesConfig,
+    config: GetReleasesConfig,
   ): Promise<ReleaseResult | null> {
     return withCache(
       {

@@ -1,17 +1,12 @@
 import { isNonEmptyString } from '@sindresorhus/is';
 import { logger } from '../../../logger/index.ts';
-import type { NonEmptyArray } from '../../../types/index.ts';
 import { withCache } from '../../../util/cache/package/with-cache.ts';
 import * as pep440Versioning from '../../versioning/pep440/index.ts';
-import { RegistryDatasource } from '../datasource.ts';
-import type {
-  RegistryGetReleasesConfig,
-  Release,
-  ReleaseResult,
-} from '../types.ts';
+import { Datasource } from '../datasource.ts';
+import type { GetReleasesConfig, Release, ReleaseResult } from '../types.ts';
 import { GalaxyV1 } from './schema.ts';
 
-export class GalaxyDatasource extends RegistryDatasource {
+export class GalaxyDatasource extends Datasource {
   static readonly id = 'galaxy';
 
   constructor() {
@@ -22,7 +17,7 @@ export class GalaxyDatasource extends RegistryDatasource {
     return false;
   }
 
-  override getDefaultRegistryUrls(_packageName: string): NonEmptyArray<string> {
+  override getDefaultRegistryUrls(_packageName: string): string[] {
     return ['https://galaxy.ansible.com/'];
   }
 
@@ -38,7 +33,7 @@ export class GalaxyDatasource extends RegistryDatasource {
   private async _getReleases({
     packageName,
     registryUrl,
-  }: RegistryGetReleasesConfig): Promise<ReleaseResult | null> {
+  }: GetReleasesConfig): Promise<ReleaseResult | null> {
     const lookUp = packageName.split('.');
     const userName = lookUp[0];
     const projectName = lookUp[1];
@@ -91,9 +86,7 @@ export class GalaxyDatasource extends RegistryDatasource {
     return result;
   }
 
-  getReleases(
-    config: RegistryGetReleasesConfig,
-  ): Promise<ReleaseResult | null> {
+  getReleases(config: GetReleasesConfig): Promise<ReleaseResult | null> {
     return withCache(
       {
         namespace: 'datasource-galaxy',

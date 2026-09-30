@@ -1,22 +1,21 @@
-import type { NonEmptyArray } from '../../../types/index.ts';
 import { GitlabHttp } from '../../../util/http/gitlab.ts';
 import { asTimestamp } from '../../../util/timestamp.ts';
 import { joinUrlParts } from '../../../util/url.ts';
-import { RegistryDatasource } from '../datasource.ts';
-import type { RegistryGetReleasesConfig, ReleaseResult } from '../types.ts';
+import { Datasource } from '../datasource.ts';
+import type { GetReleasesConfig, ReleaseResult } from '../types.ts';
 import { datasource } from './common.ts';
 import type { GitlabPackage } from './types.ts';
 
 // Gitlab Packages API: https://docs.gitlab.com/ee/api/packages.html
 
-export class GitlabPackagesDatasource extends RegistryDatasource<GitlabHttp> {
+export class GitlabPackagesDatasource extends Datasource<GitlabHttp> {
   static readonly id = datasource;
 
   override supportsCustomRegistry(_packageName: string): boolean {
     return true;
   }
 
-  override getDefaultRegistryUrls(_packageName: string): NonEmptyArray<string> {
+  override getDefaultRegistryUrls(_packageName: string): string[] {
     return ['https://gitlab.com'];
   }
 
@@ -47,7 +46,12 @@ export class GitlabPackagesDatasource extends RegistryDatasource<GitlabHttp> {
   private async fetchReleases({
     registryUrl,
     packageName,
-  }: RegistryGetReleasesConfig): Promise<ReleaseResult | null> {
+  }: GetReleasesConfig): Promise<ReleaseResult | null> {
+    /* v8 ignore next -- should never happen */
+    if (!registryUrl) {
+      return null;
+    }
+
     const [projectPart, packagePart] = packageName.split(':', 2);
 
     const apiUrl = GitlabPackagesDatasource.getGitlabPackageApiUrl(
@@ -83,11 +87,10 @@ export class GitlabPackagesDatasource extends RegistryDatasource<GitlabHttp> {
     return result.releases?.length ? result : null;
   }
 
-  getReleases(
-    config: RegistryGetReleasesConfig,
-  ): Promise<ReleaseResult | null> {
+  getReleases(config: GetReleasesConfig): Promise<ReleaseResult | null> {
     return this.cached(
       {
+        // TODO: types (#22198)
         key: `${config.registryUrl}-${config.packageName}`,
         fallback: true,
       },

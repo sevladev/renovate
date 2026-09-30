@@ -1,6 +1,5 @@
 import { logger } from '../../../logger/index.ts';
 import { ExternalHostError } from '../../../types/errors/external-host-error.ts';
-import type { NonEmptyArray } from '../../../types/index.ts';
 import { HttpError } from '../../../util/http/index.ts';
 import * as p from '../../../util/promises.ts';
 import { regEx } from '../../../util/regex.ts';
@@ -8,11 +7,7 @@ import { getQueryString, joinUrlParts } from '../../../util/url.ts';
 import * as hashicorpVersioning from '../../versioning/hashicorp/index.ts';
 import { TerraformDatasource } from '../terraform-module/base.ts';
 import { createSDBackendURL } from '../terraform-module/utils.ts';
-import type {
-  GetReleasesConfig,
-  RegistryGetReleasesConfig,
-  ReleaseResult,
-} from '../types.ts';
+import type { GetReleasesConfig, ReleaseResult } from '../types.ts';
 import {
   OpenTofuProviderDocsResponse,
   OpenTofuProviderPackagesResponse,
@@ -30,7 +25,7 @@ export class TerraformProviderDatasource extends TerraformDatasource {
 
   static readonly hashicorpReleaseUrl = 'https://releases.hashicorp.com';
 
-  private static readonly defaultRegistryUrls: NonEmptyArray<string> = [
+  private static readonly defaultRegistryUrls = [
     TerraformProviderDatasource.terraformRegistryUrl,
     TerraformProviderDatasource.hashicorpReleaseUrl,
   ];
@@ -45,7 +40,7 @@ export class TerraformProviderDatasource extends TerraformDatasource {
     super(TerraformProviderDatasource.id);
   }
 
-  override getDefaultRegistryUrls(_packageName: string): NonEmptyArray<string> {
+  override getDefaultRegistryUrls(_packageName: string): string[] {
     return TerraformProviderDatasource.defaultRegistryUrls;
   }
 
@@ -63,7 +58,11 @@ export class TerraformProviderDatasource extends TerraformDatasource {
   private async fetchReleases({
     packageName,
     registryUrl,
-  }: RegistryGetReleasesConfig): Promise<ReleaseResult | null> {
+  }: GetReleasesConfig): Promise<ReleaseResult | null> {
+    /* v8 ignore next -- should never happen */
+    if (!registryUrl) {
+      return null;
+    }
     logger.trace(
       `terraform-provider.getDependencies() packageName: ${packageName}`,
     );
@@ -85,9 +84,7 @@ export class TerraformProviderDatasource extends TerraformDatasource {
     return await this.queryProviderRegistry(registryUrl, packageName);
   }
 
-  getReleases(
-    config: RegistryGetReleasesConfig,
-  ): Promise<ReleaseResult | null> {
+  getReleases(config: GetReleasesConfig): Promise<ReleaseResult | null> {
     const url = config.registryUrl;
     const repo = TerraformProviderDatasource.getRepository(config);
     return this.cached(
