@@ -1,4 +1,3 @@
-import type { NonEmptyArray } from '../../../types/index.ts';
 import { withCache } from '../../../util/cache/package/with-cache.ts';
 import {
   defaultRegistryUrl,
@@ -8,18 +7,14 @@ import {
 import { GitlabHttp } from '../../../util/http/gitlab.ts';
 import { asTimestamp } from '../../../util/timestamp.ts';
 import { joinUrlParts } from '../../../util/url.ts';
-import { RegistryDatasource } from '../datasource.ts';
-import type {
-  RegistryGetReleasesConfig,
-  Release,
-  ReleaseResult,
-} from '../types.ts';
+import { Datasource } from '../datasource.ts';
+import type { GetReleasesConfig, Release, ReleaseResult } from '../types.ts';
 import { GitlabReleases } from './schema.ts';
 
-export class GitlabReleasesDatasource extends RegistryDatasource<GitlabHttp> {
+export class GitlabReleasesDatasource extends Datasource<GitlabHttp> {
   static readonly id = 'gitlab-releases';
 
-  override getDefaultRegistryUrls(_packageName: string): NonEmptyArray<string> {
+  override getDefaultRegistryUrls(_packageName: string): string[] {
     return [defaultRegistryUrl];
   }
 
@@ -40,7 +35,12 @@ export class GitlabReleasesDatasource extends RegistryDatasource<GitlabHttp> {
   private async _getReleases({
     registryUrl,
     packageName,
-  }: RegistryGetReleasesConfig): Promise<ReleaseResult | null> {
+  }: GetReleasesConfig): Promise<ReleaseResult | null> {
+    /* v8 ignore next -- should never happen */
+    if (!registryUrl) {
+      return null;
+    }
+
     const urlEncodedRepo = encodeURIComponent(packageName);
     const apiUrl = joinUrlParts(
       getApiBaseUrl(registryUrl),
@@ -65,12 +65,11 @@ export class GitlabReleasesDatasource extends RegistryDatasource<GitlabHttp> {
     };
   }
 
-  getReleases(
-    config: RegistryGetReleasesConfig,
-  ): Promise<ReleaseResult | null> {
+  getReleases(config: GetReleasesConfig): Promise<ReleaseResult | null> {
     return withCache(
       {
         namespace: `datasource-${GitlabReleasesDatasource.id}`,
+        // TODO: types (#22198)
         key: `${config.registryUrl}/${config.packageName}`,
         fallback: true,
       },

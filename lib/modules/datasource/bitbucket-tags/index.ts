@@ -1,4 +1,3 @@
-import type { NonEmptyArray } from '../../../types/index.ts';
 import { BitbucketHttp } from '../../../util/http/bitbucket.ts';
 import { asTimestamp } from '../../../util/timestamp.ts';
 import { ensureTrailingSlash } from '../../../util/url.ts';
@@ -10,9 +9,7 @@ import { BitbucketCommits, BitbucketTag, BitbucketTags } from './schema.ts';
 export class BitbucketTagsDatasource extends GitHostTagsDigestDatasource<BitbucketHttp> {
   static readonly id = 'bitbucket-tags';
 
-  static readonly defaultRegistryUrls: NonEmptyArray<string> = [
-    'https://bitbucket.org',
-  ];
+  static readonly defaultRegistryUrls = ['https://bitbucket.org'];
 
   constructor() {
     super(
@@ -21,7 +18,7 @@ export class BitbucketTagsDatasource extends GitHostTagsDigestDatasource<Bitbuck
     );
   }
 
-  override getDefaultRegistryUrls(_packageName: string): NonEmptyArray<string> {
+  override getDefaultRegistryUrls(_packageName: string): string[] {
     return BitbucketTagsDatasource.defaultRegistryUrls;
   }
 
