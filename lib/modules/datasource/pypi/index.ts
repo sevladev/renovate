@@ -2,7 +2,6 @@ import { isNonEmptyString } from '@sindresorhus/is';
 import changelogFilenameRegex from 'changelog-filename-regex';
 import { logger } from '../../../logger/index.ts';
 import { ExternalHostError } from '../../../types/errors/external-host-error.ts';
-import type { NonEmptyArray } from '../../../types/index.ts';
 import { coerceArray, deduplicateArray } from '../../../util/array.ts';
 import { getEnv } from '../../../util/env.ts';
 import { parse } from '../../../util/html.ts';
@@ -19,12 +18,8 @@ import type { Timestamp } from '../../../util/timestamp.ts';
 import { asTimestamp } from '../../../util/timestamp.ts';
 import { ensureTrailingSlash, parseUrl } from '../../../util/url.ts';
 import * as pep440 from '../../versioning/pep440/index.ts';
-import { RegistryDatasource } from '../datasource.ts';
-import type {
-  RegistryGetReleasesConfig,
-  Release,
-  ReleaseResult,
-} from '../types.ts';
+import { Datasource } from '../datasource.ts';
+import type { GetReleasesConfig, Release, ReleaseResult } from '../types.ts';
 import { isGoogleArtifactRegistry } from '../util.ts';
 import {
   isGitHubRepo,
@@ -36,7 +31,7 @@ import type { PypiRelease } from './schema.ts';
 import { PypiResponse, PypiSimpleResponse } from './schema.ts';
 import type { Releases } from './types.ts';
 
-export class PypiDatasource extends RegistryDatasource {
+export class PypiDatasource extends Datasource {
   static readonly id = pypiDatasourceId;
 
   constructor() {
@@ -51,7 +46,7 @@ export class PypiDatasource extends RegistryDatasource {
 
   static readonly defaultURL =
     getEnv().PIP_INDEX_URL ?? 'https://pypi.org/pypi/';
-  override getDefaultRegistryUrls(_packageName: string): NonEmptyArray<string> {
+  override getDefaultRegistryUrls(_packageName: string): string[] {
     return [PypiDatasource.defaultURL];
   }
 
@@ -69,10 +64,11 @@ export class PypiDatasource extends RegistryDatasource {
   async getReleases({
     packageName,
     registryUrl,
-  }: RegistryGetReleasesConfig): Promise<ReleaseResult | null> {
+  }: GetReleasesConfig): Promise<ReleaseResult | null> {
     let dependency: ReleaseResult | null = null;
+    // TODO: null check (#22198)
     const hostUrl = ensureTrailingSlash(
-      registryUrl.replace('https://pypi.org/simple', 'https://pypi.org/pypi'),
+      registryUrl!.replace('https://pypi.org/simple', 'https://pypi.org/pypi'),
     );
     const normalizedLookupName = normalizePythonDepName(packageName);
 

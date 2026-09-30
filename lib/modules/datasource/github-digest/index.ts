@@ -1,4 +1,3 @@
-import type { NonEmptyArray } from '../../../types/index.ts';
 import {
   queryBranches,
   queryTags,
@@ -6,18 +5,18 @@ import {
 import { getSourceUrl } from '../../../util/github/url.ts';
 import { GithubHttp } from '../../../util/http/github.ts';
 import * as exactVersioning from '../../versioning/exact/index.ts';
-import { RegistryDatasource } from '../datasource.ts';
+import { Datasource } from '../datasource.ts';
 import type {
-  RegistryDigestConfig,
-  RegistryGetReleasesConfig,
+  DigestConfig,
+  GetReleasesConfig,
   Release,
   ReleaseResult,
 } from '../types.ts';
 
-export class GithubDigestDatasource extends RegistryDatasource<GithubHttp> {
+export class GithubDigestDatasource extends Datasource<GithubHttp> {
   static readonly id = 'github-digest';
 
-  override getDefaultRegistryUrls(_packageName: string): NonEmptyArray<string> {
+  override getDefaultRegistryUrls(_packageName: string): string[] {
     return ['https://github.com'];
   }
 
@@ -44,9 +43,7 @@ export class GithubDigestDatasource extends RegistryDatasource<GithubHttp> {
     return `${registryUrl}:${packageName}:${suffix}`;
   }
 
-  override getReleases(
-    config: RegistryGetReleasesConfig,
-  ): Promise<ReleaseResult> {
+  override getReleases(config: GetReleasesConfig): Promise<ReleaseResult> {
     const { registryUrl, packageName: repo } = config;
     const sourceUrl = getSourceUrl(repo, registryUrl);
 
@@ -105,7 +102,7 @@ export class GithubDigestDatasource extends RegistryDatasource<GithubHttp> {
   }
 
   override async getDigest(
-    { packageName: repo, registryUrl }: RegistryDigestConfig,
+    { packageName: repo, registryUrl }: DigestConfig,
     newValue?: string,
   ): Promise<string | null> {
     if (!newValue) {

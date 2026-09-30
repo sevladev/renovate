@@ -1,20 +1,19 @@
 import { logger } from '../../../logger/index.ts';
-import type { NonEmptyArray } from '../../../types/index.ts';
 import { asTimestamp } from '../../../util/timestamp.ts';
 import * as rustVersioning from '../../versioning/rust-release-channel/index.ts';
-import { RegistryDatasource } from '../datasource.ts';
-import type { RegistryGetReleasesConfig, ReleaseResult } from '../types.ts';
+import { Datasource } from '../datasource.ts';
+import type { GetReleasesConfig, ReleaseResult } from '../types.ts';
 import { parseManifestUrl } from './parse.ts';
 import type { ParsedManifestUrl } from './types.ts';
 
-export class RustVersionDatasource extends RegistryDatasource {
+export class RustVersionDatasource extends Datasource {
   static readonly id = 'rust-version';
 
   override supportsCustomRegistry(_packageName: string): boolean {
     return false;
   }
 
-  override getDefaultRegistryUrls(_packageName: string): NonEmptyArray<string> {
+  override getDefaultRegistryUrls(_packageName: string): string[] {
     return ['https://static.rust-lang.org'];
   }
 
@@ -53,7 +52,7 @@ export class RustVersionDatasource extends RegistryDatasource {
 
   async fetchReleases({
     registryUrl,
-  }: RegistryGetReleasesConfig): Promise<ReleaseResult | null> {
+  }: GetReleasesConfig): Promise<ReleaseResult | null> {
     const url = new URL('manifests.txt', registryUrl);
 
     let parsedResults: ParsedManifestUrl[];
@@ -96,12 +95,10 @@ export class RustVersionDatasource extends RegistryDatasource {
     return releaseResult;
   }
 
-  getReleases(
-    config: RegistryGetReleasesConfig,
-  ): Promise<ReleaseResult | null> {
+  getReleases(config: GetReleasesConfig): Promise<ReleaseResult | null> {
     return this.cached(
       {
-        key: config.registryUrl,
+        key: config.registryUrl!,
         cacheable: true,
       },
       () => this.fetchReleases(config),

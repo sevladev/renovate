@@ -11,7 +11,6 @@ import {
 } from '../../instrumentation/types.ts';
 import { logger } from '../../logger/index.ts';
 import { ExternalHostError } from '../../types/errors/external-host-error.ts';
-import type { NonEmptyArray } from '../../types/index.ts';
 import { coerceArray } from '../../util/array.ts';
 import * as memCache from '../../util/cache/memory/index.ts';
 import * as packageCache from '../../util/cache/package/index.ts';
@@ -41,9 +40,6 @@ import type {
   GetDigestInputConfig,
   GetPkgReleasesConfig,
   GetReleasesConfig,
-  RegistryDatasourceApi,
-  RegistryDigestConfig,
-  RegistryGetReleasesConfig,
   RegistryUrlsConfig,
   ReleaseResult,
 } from './types.ts';
@@ -62,11 +58,6 @@ export function getDatasourceList(): string[] {
  * Projects the registry-level config onto the fields a datasource
  * implementation is allowed to see.
  */
-function toGetReleasesConfig(
-  config: GetPkgReleasesConfig,
-  registryUrl: string,
-): RegistryGetReleasesConfig;
-function toGetReleasesConfig(config: GetPkgReleasesConfig): GetReleasesConfig;
 function toGetReleasesConfig(
   config: GetPkgReleasesConfig,
   registryUrl = config.registryUrl,
@@ -176,7 +167,7 @@ async function getRegistryReleases(
 function firstRegistry(
   config: GetPkgReleasesConfig,
   datasource: DatasourceApi,
-  registryUrls: NonEmptyArray<string>,
+  registryUrls: string[],
 ): Promise<ReleaseResult | null> {
   if (registryUrls.length > 1) {
     logger.warn(
@@ -351,16 +342,6 @@ function massageRegistryUrls(registryUrls: string[]): string[] {
 }
 
 function resolveRegistryUrls(
-  datasource: RegistryDatasourceApi,
-  packageName: string,
-  registryUrlsConfig: RegistryUrlsConfig,
-): NonEmptyArray<string>;
-function resolveRegistryUrls(
-  datasource: DatasourceApi,
-  packageName: string,
-  registryUrlsConfig: RegistryUrlsConfig,
-): string[];
-function resolveRegistryUrls(
   datasource: DatasourceApi,
   packageName: string,
   {
@@ -419,64 +400,6 @@ function applyReplacements(
   return undefined;
 }
 
-function queryRegistries(
-  config: GetPkgReleasesConfig,
-  datasource: DatasourceApi,
-  registryUrls: NonEmptyArray<string>,
-): Promise<ReleaseResult | null> {
-  const registryStrategy =
-    config.registryStrategy ?? datasource.registryStrategy;
-  if (registryStrategy === 'first') {
-    return firstRegistry(config, datasource, registryUrls);
-  }
-  if (registryStrategy === 'hunt') {
-    return huntRegistries(config, datasource, registryUrls);
-  }
-  // `merge` is the only remaining strategy
-  return mergeRegistries(config, datasource, registryUrls);
-}
-
-/**
- * Queries the resolved registries, or the datasource itself when there is no
- * registry to query, which only a `PlainDatasourceApi` accepts.
- */
-function getDatasourceReleases(
-  config: GetPkgReleasesConfig,
-  datasource: DatasourceApi,
-  registryUrlsConfig: RegistryUrlsConfig,
-): Promise<ReleaseResult | null> {
-  const { packageName } = config;
-  if (datasource.registryUrlRequired) {
-    // Never empty, as it falls back to the datasource's default registry URLs
-    const registryUrls = resolveRegistryUrls(
-      datasource,
-      packageName,
-      registryUrlsConfig,
-    );
-    return queryRegistries(config, datasource, registryUrls);
-  }
-  const registryUrls = resolveRegistryUrls(
-    datasource,
-    packageName,
-    registryUrlsConfig,
-  );
-  if (isNonEmptyArray(registryUrls)) {
-    return queryRegistries(config, datasource, registryUrls);
-  }
-  return instrument(
-    'getReleases',
-    () => datasource.getReleases(toGetReleasesConfig(config)),
-    {
-      attributes: {
-        [ATTR_CODE_FUNCTION_NAME]: 'getReleases',
-        [ATTR_RENOVATE_DATASOURCE]: datasource.id,
-        [ATTR_RENOVATE_REGISTRY_URL]: config.registryUrl ?? '',
-        [ATTR_RENOVATE_PACKAGE_NAME]: packageName,
-      },
-    },
-  );
-}
-
 async function fetchReleases(
   config: GetPkgReleasesConfig,
 ): Promise<ReleaseResult | null> {
@@ -505,9 +428,38 @@ async function fetchReleases(
     logger.warn({ datasource: datasourceName }, 'Unknown datasource');
     return null;
   }
+  const registryUrls = resolveRegistryUrls(
+    datasource,
+    config.packageName,
+    registryUrlsConfig,
+  );
   let dep: ReleaseResult | null = null;
+  const registryStrategy =
+    config.registryStrategy ?? datasource.registryStrategy;
   try {
-    dep = await getDatasourceReleases(config, datasource, registryUrlsConfig);
+    if (isNonEmptyArray(registryUrls)) {
+      if (registryStrategy === 'first') {
+        dep = await firstRegistry(config, datasource, registryUrls);
+      } else if (registryStrategy === 'hunt') {
+        dep = await huntRegistries(config, datasource, registryUrls);
+      } else {
+        // `merge` is the only remaining strategy
+        dep = await mergeRegistries(config, datasource, registryUrls);
+      }
+    } else {
+      dep = await instrument(
+        'getReleases',
+        () => datasource.getReleases(toGetReleasesConfig(config)),
+        {
+          attributes: {
+            [ATTR_CODE_FUNCTION_NAME]: 'getReleases',
+            [ATTR_RENOVATE_DATASOURCE]: datasource.id,
+            [ATTR_RENOVATE_REGISTRY_URL]: config.registryUrl ?? '',
+            [ATTR_RENOVATE_PACKAGE_NAME]: config.packageName,
+          },
+        },
+      );
+    }
   } catch (err) {
     if (
       [HOST_BLOCKED, HOST_DISABLED].includes(err.message) ||
@@ -611,14 +563,6 @@ export function supportsDigests(datasource: string | undefined): boolean {
 }
 
 function getDigestConfig(
-  datasource: RegistryDatasourceApi,
-  config: GetDigestInputConfig,
-): RegistryDigestConfig;
-function getDigestConfig(
-  datasource: DatasourceApi,
-  config: GetDigestInputConfig,
-): DigestConfig;
-function getDigestConfig(
   datasource: DatasourceApi,
   config: GetDigestInputConfig,
 ): DigestConfig {
@@ -637,15 +581,11 @@ export function getDigest(
 ): Promise<string | null> {
   const datasource = getDatasourceFor(config.datasource);
   // istanbul ignore if: need test
-  if (!datasource?.getDigest) {
+  if (!datasource || !('getDigest' in datasource)) {
     return Promise.resolve(null);
   }
-  // The arms differ only in their types: the narrowed `datasource` selects the
-  // `getDigestConfig()` overload that returns a `RegistryDigestConfig`.
-  if (datasource.registryUrlRequired) {
-    return datasource.getDigest(getDigestConfig(datasource, config), value);
-  }
-  return datasource.getDigest(getDigestConfig(datasource, config), value);
+  const digestConfig = getDigestConfig(datasource, config);
+  return datasource.getDigest!(digestConfig, value);
 }
 
 export function getDefaultConfig(

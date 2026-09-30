@@ -1,4 +1,3 @@
-import type { NonEmptyArray } from '../../../types/index.ts';
 import { MAVEN_REPO } from '../maven/common.ts';
 import { MavenDatasource } from '../maven/index.ts';
 import { CLOJARS_REPO } from './common.ts';
@@ -12,7 +11,7 @@ export class ClojureDatasource extends MavenDatasource {
 
   override readonly registryStrategy = 'merge';
 
-  override getDefaultRegistryUrls(_packageName: string): NonEmptyArray<string> {
+  override getDefaultRegistryUrls(_packageName: string): string[] {
     return [CLOJARS_REPO, MAVEN_REPO];
   }
 }

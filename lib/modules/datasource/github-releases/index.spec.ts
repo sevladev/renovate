@@ -106,15 +106,6 @@ describe('modules/datasource/github-releases/index', () => {
       ]);
     });
 
-    it('returns null without a new value', async () => {
-      const digest = await getDigest({
-        datasource: GithubReleasesDatasource.id,
-        packageName,
-        currentValue,
-      });
-      expect(digest).toBeNull();
-    });
-
     it('should be independent of the current digest', async () => {
       const digest = await getDigest(
         {
