@@ -164,13 +164,17 @@ export abstract class GitDatasource extends Datasource {
       return null;
     }
 
-    const ref = newValue
-      ? rawRefs.find(
-          (rawRef) =>
-            this.refTypes.includes(rawRef.type) && rawRef.value === newValue,
-        )
-      : rawRefs.find((rawRef) => rawRef.type === '' && rawRef.value === 'HEAD');
+    if (!newValue) {
+      const head = rawRefs.find(
+        (rawRef) => rawRef.type === '' && rawRef.value === 'HEAD',
+      );
+      return head?.hash ?? null;
+    }
 
+    const ref = rawRefs.find(
+      (rawRef) =>
+        this.refTypes.includes(rawRef.type) && rawRef.value === newValue,
+    );
     return ref?.hash ?? null;
   }
 }
