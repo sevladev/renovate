@@ -1,7 +1,7 @@
 import { logger } from '../../../logger/index.ts';
 import { BitbucketServerHttp } from '../../../util/http/bitbucket-server.ts';
 import { regEx } from '../../../util/regex.ts';
-import { ensureTrailingSlash } from '../../../util/url.ts';
+import { ensureTrailingSlash, joinUrlParts } from '../../../util/url.ts';
 import { GitHostTagsDigestDatasource } from '../git-host-tags.ts';
 import type { DigestConfig, GetReleasesConfig, GitHostTag } from '../types.ts';
 import {
@@ -40,13 +40,19 @@ export class BitbucketServerTagsDatasource extends GitHostTagsDigestDatasource<B
   getSourceUrl(packageName: string, registryUrl?: string): string {
     const [projectKey, repositorySlug] = packageName.split('/');
     const url = this.getRegistryUrl(registryUrl);
-    return `${ensureTrailingSlash(url)}projects/${projectKey}/repos/${repositorySlug}`;
+    return joinUrlParts(url, 'projects', projectKey, 'repos', repositorySlug);
   }
 
   /** REST API base URL of the repository. */
   private getRepoApiUrl(registryUrl: string, packageName: string): string {
     const [projectKey, repositorySlug] = packageName.split('/');
-    return `${BitbucketServerTagsDatasource.getApiUrl(registryUrl)}projects/${projectKey}/repos/${repositorySlug}`;
+    return joinUrlParts(
+      BitbucketServerTagsDatasource.getApiUrl(registryUrl),
+      'projects',
+      projectKey,
+      'repos',
+      repositorySlug,
+    );
   }
 
   // fetchTags fetches list of tags for the repository
@@ -59,7 +65,10 @@ export class BitbucketServerTagsDatasource extends GitHostTagsDigestDatasource<B
       return null;
     }
 
-    const url = `${this.getRepoApiUrl(registryUrl, packageName)}/tags`;
+    const url = joinUrlParts(
+      this.getRepoApiUrl(registryUrl, packageName),
+      'tags',
+    );
 
     const tags = await this.fetchJsonOrNull(url, BitbucketServerTags, {
       paginate: true,
@@ -94,7 +103,10 @@ export class BitbucketServerTagsDatasource extends GitHostTagsDigestDatasource<B
   ): Promise<string | null> {
     const baseUrl = this.getRepoApiUrl(registryUrl!, repo);
     const bitbucketServerTag = (
-      await this.http.getJson(`${baseUrl}/tags/${tag}`, BitbucketServerTag)
+      await this.http.getJson(
+        joinUrlParts(baseUrl, 'tags', tag),
+        BitbucketServerTag,
+      )
     ).body;
 
     return bitbucketServerTag.hash ?? null;
@@ -107,7 +119,7 @@ export class BitbucketServerTagsDatasource extends GitHostTagsDigestDatasource<B
   ): Promise<string | null> {
     const baseUrl = this.getRepoApiUrl(registryUrl!, repo);
 
-    const url = `${baseUrl}/commits?ignoreMissing=true`;
+    const url = joinUrlParts(baseUrl, 'commits?ignoreMissing=true');
 
     const commits = await this.fetchJsonOrNull(url, BitbucketServerCommits, {
       paginate: true,
