@@ -2,17 +2,12 @@ import { verify as verifySignature } from 'node:crypto';
 import { promisify } from 'node:util';
 import { gunzip } from 'node:zlib';
 import { logger } from '../../../logger/index.ts';
-import type { NonEmptyArray } from '../../../types/index.ts';
 import { withCache } from '../../../util/cache/package/with-cache.ts';
 import { memCacheProvider } from '../../../util/http/cache/memory-http-cache-provider.ts';
 import { joinUrlParts, parseUrl } from '../../../util/url.ts';
 import * as hexVersioning from '../../versioning/hex/index.ts';
-import { RegistryDatasource } from '../datasource.ts';
-import type {
-  RegistryGetReleasesConfig,
-  Release,
-  ReleaseResult,
-} from '../types.ts';
+import { Datasource } from '../datasource.ts';
+import type { GetReleasesConfig, Release, ReleaseResult } from '../types.ts';
 import { HexRelease } from './schema.ts';
 import { Package } from './v2/package.ts';
 import { Signed } from './v2/signed.ts';
@@ -106,14 +101,14 @@ function mapV2Releases(pkg: Package): Release[] {
   return releases;
 }
 
-export class HexDatasource extends RegistryDatasource {
+export class HexDatasource extends Datasource {
   static readonly id = 'hex';
 
   constructor() {
     super(HexDatasource.id);
   }
 
-  override getDefaultRegistryUrls(_packageName: string): NonEmptyArray<string> {
+  override getDefaultRegistryUrls(_packageName: string): string[] {
     return [defaultRegistryUrl];
   }
 
@@ -126,10 +121,15 @@ export class HexDatasource extends RegistryDatasource {
   override readonly sourceUrlNote =
     'The source URL is determined from the `Github` field in the results.';
 
-  private getReleasesViaJsonApi({
+  private async getReleasesViaJsonApi({
     packageName,
     registryUrl,
-  }: RegistryGetReleasesConfig): Promise<ReleaseResult | null> {
+  }: GetReleasesConfig): Promise<ReleaseResult | null> {
+    /* v8 ignore if -- should never happen */
+    if (!registryUrl) {
+      return null;
+    }
+
     const { hexPackageName, organizationUrlPrefix } =
       parsePackageName(packageName);
 
@@ -144,7 +144,12 @@ export class HexDatasource extends RegistryDatasource {
   private async getReleasesViaV2Protocol({
     packageName,
     registryUrl,
-  }: RegistryGetReleasesConfig): Promise<ReleaseResult | null> {
+  }: GetReleasesConfig): Promise<ReleaseResult | null> {
+    /* v8 ignore if -- should never happen */
+    if (!registryUrl) {
+      return null;
+    }
+
     const { hexPackageName, organizationName, organizationUrlPrefix } =
       parsePackageName(packageName);
 
@@ -232,7 +237,7 @@ export class HexDatasource extends RegistryDatasource {
   }
 
   private async _getReleases(
-    config: RegistryGetReleasesConfig,
+    config: GetReleasesConfig,
   ): Promise<ReleaseResult | null> {
     if (HexDatasource.isDefaultRegistry(config.registryUrl)) {
       return this.getReleasesViaJsonApi(config);
@@ -257,9 +262,7 @@ export class HexDatasource extends RegistryDatasource {
     return !registryUrl || registryUrl === defaultRegistryUrl;
   }
 
-  getReleases(
-    config: RegistryGetReleasesConfig,
-  ): Promise<ReleaseResult | null> {
+  getReleases(config: GetReleasesConfig): Promise<ReleaseResult | null> {
     const isDefault = HexDatasource.isDefaultRegistry(config.registryUrl);
     const key = isDefault
       ? config.packageName

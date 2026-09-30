@@ -1,14 +1,13 @@
-import { isUndefined } from '@sindresorhus/is';
+import { isString, isUndefined } from '@sindresorhus/is';
 import { logger } from '../../../logger/index.ts';
-import type { NonEmptyArray } from '../../../types/index.ts';
 import { GithubHttp } from '../../../util/http/github.ts';
 import { regEx } from '../../../util/regex.ts';
 import { ensureTrailingSlash, joinUrlParts } from '../../../util/url.ts';
 import * as allVersioning from '../../versioning/index.ts';
-import { RegistryDatasource } from '../datasource.ts';
+import { Datasource } from '../datasource.ts';
 import type {
-  RegistryDigestConfig,
-  RegistryGetReleasesConfig,
+  DigestConfig,
+  GetReleasesConfig,
   Release,
   ReleaseResult,
 } from '../types.ts';
@@ -22,10 +21,10 @@ import {
   ConanRevisionJSON,
 } from './schema.ts';
 
-export class ConanDatasource extends RegistryDatasource {
+export class ConanDatasource extends Datasource {
   static readonly id = datasource;
 
-  override getDefaultRegistryUrls(_packageName: string): NonEmptyArray<string> {
+  override getDefaultRegistryUrls(_packageName: string): string[] {
     return [defaultRegistryUrl];
   }
 
@@ -63,10 +62,10 @@ export class ConanDatasource extends RegistryDatasource {
   }
 
   private async fetchDigest(
-    { registryUrl, packageName }: RegistryDigestConfig,
+    { registryUrl, packageName }: DigestConfig,
     newValue?: string,
   ): Promise<string | null> {
-    if (isUndefined(newValue)) {
+    if (isUndefined(newValue) || isUndefined(registryUrl)) {
       return null;
     }
     const url = ensureTrailingSlash(registryUrl);
@@ -87,13 +86,13 @@ export class ConanDatasource extends RegistryDatasource {
   }
 
   override getDigest(
-    config: RegistryDigestConfig,
+    config: DigestConfig,
     newValue?: string,
   ): Promise<string | null> {
     return this.cached(
       {
         // TODO: types (#22198)
-        key: `getDigest:${config.registryUrl}:${config.packageName}:${newValue!}`,
+        key: `getDigest:${config.registryUrl!}:${config.packageName}:${newValue!}`,
         fallback: true,
       },
       () => this.fetchDigest(config, newValue),
@@ -103,10 +102,13 @@ export class ConanDatasource extends RegistryDatasource {
   private async fetchReleases({
     registryUrl,
     packageName,
-  }: RegistryGetReleasesConfig): Promise<ReleaseResult | null> {
+  }: GetReleasesConfig): Promise<ReleaseResult | null> {
     const conanPackage = getConanPackage(packageName);
     const userAndChannel = `@${conanPackage.userAndChannel}`;
-    if (ensureTrailingSlash(registryUrl) === defaultRegistryUrl) {
+    if (
+      isString(registryUrl) &&
+      ensureTrailingSlash(registryUrl) === defaultRegistryUrl
+    ) {
       return this.getConanCenterReleases(
         conanPackage.conanName,
         userAndChannel,
@@ -118,88 +120,90 @@ export class ConanDatasource extends RegistryDatasource {
       'Looking up conan api dependency',
     );
 
-    const url = ensureTrailingSlash(registryUrl);
-    const lookupUrl = joinUrlParts(
-      url,
-      `v2/conans/search?q=${conanPackage.conanName}`,
-    );
+    // v8 ignore else -- the datasource layer always supplies a registry url
+    if (registryUrl) {
+      const url = ensureTrailingSlash(registryUrl);
+      const lookupUrl = joinUrlParts(
+        url,
+        `v2/conans/search?q=${conanPackage.conanName}`,
+      );
 
-    try {
-      const rep = await this.http.getJson(lookupUrl, ConanJSON);
-      const conanJson = rep.body;
-      if (conanJson) {
-        logger.trace({ lookupUrl }, 'Got conan api result');
-        const dep: ReleaseResult = { releases: [] };
+      try {
+        const rep = await this.http.getJson(lookupUrl, ConanJSON);
+        const conanJson = rep.body;
+        if (conanJson) {
+          logger.trace({ lookupUrl }, 'Got conan api result');
+          const dep: ReleaseResult = { releases: [] };
 
-        const conanJsonReleases: Release[] = conanJson
-          .filter(({ userChannel }) => userChannel === userAndChannel)
-          .map(({ version }) => ({ version }));
-        dep.releases.push(...conanJsonReleases);
+          const conanJsonReleases: Release[] = conanJson
+            .filter(({ userChannel }) => userChannel === userAndChannel)
+            .map(({ version }) => ({ version }));
+          dep.releases.push(...conanJsonReleases);
 
-        try {
-          if (isArtifactoryServer(rep)) {
-            const conanApiRegexp = regEx(
-              /(?<host>.*)\/artifactory\/api\/conan\/(?<repo>[^/]+)/,
-            );
-            const groups = conanApiRegexp.exec(url)?.groups;
-            if (!groups) {
-              return dep;
+          try {
+            if (isArtifactoryServer(rep)) {
+              const conanApiRegexp = regEx(
+                /(?<host>.*)\/artifactory\/api\/conan\/(?<repo>[^/]+)/,
+              );
+              const groups = conanApiRegexp.exec(url)?.groups;
+              if (!groups) {
+                return dep;
+              }
+              const semver = allVersioning.get('semver');
+
+              const sortedReleases = dep.releases
+                .filter((release) => semver.isVersion(release.version))
+                .sort((a, b) => semver.sortVersions(a.version, b.version));
+
+              const latestVersion = sortedReleases.at(-1)?.version;
+
+              if (!latestVersion) {
+                return dep;
+              }
+              logger.debug(
+                `Conan package ${packageName} has latest version ${latestVersion}`,
+              );
+
+              const latestRevisionUrl = joinUrlParts(
+                url,
+                `v2/conans/${conanPackage.conanName}/${latestVersion}/${conanPackage.userAndChannel}/latest`,
+              );
+              const {
+                body: { revision: packageRev },
+              } = await this.http.getJson(latestRevisionUrl, ConanRevisionJSON);
+
+              const [user, channel] = conanPackage.userAndChannel.split('/');
+              const packageUrl = joinUrlParts(
+                `${groups.host}/artifactory/api/storage/${groups.repo}`,
+                `${user}/${conanPackage.conanName}/${latestVersion}/${channel}/${packageRev}/export/conanfile.py?properties=conan.package.url`,
+              );
+              const { body: conanProperties } = await this.http.getJson(
+                packageUrl,
+                ConanProperties,
+              );
+              const { sourceUrl } = conanProperties;
+              // v8 ignore else -- needs a full artifactory properties fixture
+              if (sourceUrl) {
+                dep.sourceUrl = sourceUrl;
+              }
             }
-            const semver = allVersioning.get('semver');
-
-            const sortedReleases = dep.releases
-              .filter((release) => semver.isVersion(release.version))
-              .sort((a, b) => semver.sortVersions(a.version, b.version));
-
-            const latestVersion = sortedReleases.at(-1)?.version;
-
-            if (!latestVersion) {
-              return dep;
-            }
-            logger.debug(
-              `Conan package ${packageName} has latest version ${latestVersion}`,
-            );
-
-            const latestRevisionUrl = joinUrlParts(
-              url,
-              `v2/conans/${conanPackage.conanName}/${latestVersion}/${conanPackage.userAndChannel}/latest`,
-            );
-            const {
-              body: { revision: packageRev },
-            } = await this.http.getJson(latestRevisionUrl, ConanRevisionJSON);
-
-            const [user, channel] = conanPackage.userAndChannel.split('/');
-            const packageUrl = joinUrlParts(
-              `${groups.host}/artifactory/api/storage/${groups.repo}`,
-              `${user}/${conanPackage.conanName}/${latestVersion}/${channel}/${packageRev}/export/conanfile.py?properties=conan.package.url`,
-            );
-            const { body: conanProperties } = await this.http.getJson(
-              packageUrl,
-              ConanProperties,
-            );
-            const { sourceUrl } = conanProperties;
-            // v8 ignore else -- needs a full artifactory properties fixture
-            if (sourceUrl) {
-              dep.sourceUrl = sourceUrl;
-            }
+          } catch (err) {
+            logger.debug({ err }, "Couldn't determine Conan package url");
           }
-        } catch (err) {
-          logger.debug({ err }, "Couldn't determine Conan package url");
+          return dep;
         }
-        return dep;
+      } catch (err) {
+        this.handleGenericErrors(err);
       }
-    } catch (err) {
-      this.handleGenericErrors(err);
     }
 
     return null;
   }
 
-  getReleases(
-    config: RegistryGetReleasesConfig,
-  ): Promise<ReleaseResult | null> {
+  getReleases(config: GetReleasesConfig): Promise<ReleaseResult | null> {
     return this.cached(
       {
+        // TODO: types (#22198)
         key: `getReleases:${config.registryUrl}:${config.packageName}`,
         fallback: true,
       },

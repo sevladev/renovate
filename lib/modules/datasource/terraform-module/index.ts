@@ -1,8 +1,7 @@
 import { logger } from '../../../logger/index.ts';
-import type { NonEmptyArray } from '../../../types/index.ts';
 import { getQueryString, isHttpUrl, joinUrlParts } from '../../../util/url.ts';
 import * as hashicorpVersioning from '../../versioning/hashicorp/index.ts';
-import type { RegistryGetReleasesConfig, ReleaseResult } from '../types.ts';
+import type { GetReleasesConfig, ReleaseResult } from '../types.ts';
 import { TerraformDatasource } from './base.ts';
 import {
   OpenTofuModuleDocsResponse,
@@ -17,7 +16,7 @@ export class TerraformModuleDatasource extends TerraformDatasource {
 
   static readonly terraformCloudUrl = 'https://app.terraform.io';
 
-  static readonly defaultRegistryUrls: NonEmptyArray<string> = [
+  static readonly defaultRegistryUrls = [
     TerraformModuleDatasource.terraformRegistryUrl,
   ];
 
@@ -25,7 +24,7 @@ export class TerraformModuleDatasource extends TerraformDatasource {
     super(TerraformModuleDatasource.id);
   }
 
-  override getDefaultRegistryUrls(_packageName: string): NonEmptyArray<string> {
+  override getDefaultRegistryUrls(_packageName: string): string[] {
     return TerraformModuleDatasource.defaultRegistryUrls;
   }
 
@@ -48,7 +47,12 @@ export class TerraformModuleDatasource extends TerraformDatasource {
   private async fetchReleases({
     packageName,
     registryUrl,
-  }: RegistryGetReleasesConfig): Promise<ReleaseResult | null> {
+  }: GetReleasesConfig): Promise<ReleaseResult | null> {
+    /* v8 ignore next -- should never happen */
+    if (!registryUrl) {
+      return null;
+    }
+
     const { registry, repository } = getRegistryRepository(
       packageName,
       registryUrl,
@@ -79,9 +83,7 @@ export class TerraformModuleDatasource extends TerraformDatasource {
     }
   }
 
-  getReleases(
-    config: RegistryGetReleasesConfig,
-  ): Promise<ReleaseResult | null> {
+  getReleases(config: GetReleasesConfig): Promise<ReleaseResult | null> {
     return this.cached(
       {
         key: TerraformModuleDatasource.getCacheKey(config),
@@ -211,7 +213,7 @@ export class TerraformModuleDatasource extends TerraformDatasource {
   private static getCacheKey({
     packageName,
     registryUrl,
-  }: RegistryGetReleasesConfig): string {
+  }: GetReleasesConfig): string {
     const { registry, repository } = getRegistryRepository(
       packageName,
       registryUrl,

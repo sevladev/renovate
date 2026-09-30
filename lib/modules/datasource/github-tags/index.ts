@@ -1,6 +1,5 @@
 import { isBoolean, isNullOrUndefined } from '@sindresorhus/is';
 import { logger } from '../../../logger/index.ts';
-import type { NonEmptyArray } from '../../../types/index.ts';
 import {
   queryReleases,
   queryTags,
@@ -10,18 +9,18 @@ import { findCommitOfTag } from '../../../util/github/tags.ts';
 import { getApiBaseUrl, getSourceUrl } from '../../../util/github/url.ts';
 import { memCacheProvider } from '../../../util/http/cache/memory-http-cache-provider.ts';
 import { GithubHttp } from '../../../util/http/github.ts';
-import { RegistryDatasource } from '../datasource.ts';
+import { Datasource } from '../datasource.ts';
 import type {
-  RegistryDigestConfig,
-  RegistryGetReleasesConfig,
+  DigestConfig,
+  GetReleasesConfig,
   Release,
   ReleaseResult,
 } from '../types.ts';
 
-export class GithubTagsDatasource extends RegistryDatasource<GithubHttp> {
+export class GithubTagsDatasource extends Datasource<GithubHttp> {
   static readonly id = 'github-tags';
 
-  override getDefaultRegistryUrls(_packageName: string): NonEmptyArray<string> {
+  override getDefaultRegistryUrls(_packageName: string): string[] {
     return ['https://github.com'];
   }
 
@@ -68,16 +67,16 @@ export class GithubTagsDatasource extends RegistryDatasource<GithubHttp> {
    * Returns the latest commit hash for the repository.
    */
   override getDigest(
-    { packageName: repo, registryUrl }: RegistryDigestConfig,
+    { packageName: repo, registryUrl }: Partial<DigestConfig>,
     newValue?: string,
   ): Promise<string | null> {
     return newValue
-      ? findCommitOfTag(registryUrl, repo, newValue, this.http)
-      : this.getCommit(registryUrl, repo);
+      ? findCommitOfTag(registryUrl, repo!, newValue, this.http)
+      : this.getCommit(registryUrl, repo!);
   }
 
   override async getReleases(
-    config: RegistryGetReleasesConfig,
+    config: GetReleasesConfig,
   ): Promise<ReleaseResult> {
     const { registryUrl, packageName: repo } = config;
     const sourceUrl = getSourceUrl(repo, registryUrl);

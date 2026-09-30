@@ -4,19 +4,14 @@ import { extract as tarExtract } from 'tar';
 import upath from 'upath';
 import { logger } from '../../../logger/index.ts';
 import { ExternalHostError } from '../../../types/errors/external-host-error.ts';
-import type { NonEmptyArray } from '../../../types/index.ts';
 import { withCache } from '../../../util/cache/package/with-cache.ts';
 import * as fs from '../../../util/fs/index.ts';
 import { HttpError } from '../../../util/http/index.ts';
 import { asTimestamp } from '../../../util/timestamp.ts';
 import { joinUrlParts } from '../../../util/url.ts';
 import { id as apkVersioning } from '../../versioning/apk/index.ts';
-import { RegistryDatasource } from '../datasource.ts';
-import type {
-  RegistryGetReleasesConfig,
-  Release,
-  ReleaseResult,
-} from '../types.ts';
+import { Datasource } from '../datasource.ts';
+import type { GetReleasesConfig, Release, ReleaseResult } from '../types.ts';
 import { parseApkIndexFile } from './parser.ts';
 import type { ApkPackage } from './types.ts';
 import { constructComponentUrls } from './url.ts';
@@ -48,7 +43,7 @@ function groupPackagesByName(
   return packagesByName;
 }
 
-export class ApkDatasource extends RegistryDatasource {
+export class ApkDatasource extends Datasource {
   static readonly id = apkDatasourceId;
 
   override readonly defaultVersioning = apkVersioning;
@@ -69,7 +64,7 @@ export class ApkDatasource extends RegistryDatasource {
    * - branch: latest-stable, v3.19, edge or any other Alpine branch
    * - components: comma separated list of components, e.g. main,community,testing
    */
-  override getDefaultRegistryUrls(_packageName: string): NonEmptyArray<string> {
+  override getDefaultRegistryUrls(_packageName: string): string[] {
     return [
       'https://dl-cdn.alpinelinux.org/alpine?branch=latest-stable&components=main&arch=x86_64',
     ];
@@ -180,7 +175,12 @@ export class ApkDatasource extends RegistryDatasource {
   async getReleases({
     packageName,
     registryUrl,
-  }: RegistryGetReleasesConfig): Promise<ReleaseResult | null> {
+  }: GetReleasesConfig): Promise<ReleaseResult | null> {
+    /* v8 ignore if -- should never happen */
+    if (!registryUrl) {
+      return null;
+    }
+
     logger.debug(`Getting APK releases for ${packageName} from ${registryUrl}`);
 
     const componentUrls = constructComponentUrls(registryUrl);

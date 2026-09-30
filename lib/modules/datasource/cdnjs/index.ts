@@ -1,18 +1,17 @@
 import { ExternalHostError } from '../../../types/errors/external-host-error.ts';
-import type { NonEmptyArray } from '../../../types/index.ts';
 import { withCache } from '../../../util/cache/package/with-cache.ts';
 import { memCacheProvider } from '../../../util/http/cache/memory-http-cache-provider.ts';
 import type { HttpError } from '../../../util/http/index.ts';
-import { RegistryDatasource } from '../datasource.ts';
+import { Datasource } from '../datasource.ts';
 import type {
-  RegistryDigestConfig,
-  RegistryGetReleasesConfig,
+  DigestConfig,
+  GetReleasesConfig,
   Release,
   ReleaseResult,
 } from '../types.ts';
 import { CdnjsAPISriResponse, CdnjsAPIVersionResponse } from './schema.ts';
 
-export class CdnjsDatasource extends RegistryDatasource {
+export class CdnjsDatasource extends Datasource {
   static readonly id = 'cdnjs';
 
   constructor() {
@@ -23,7 +22,7 @@ export class CdnjsDatasource extends RegistryDatasource {
     return false;
   }
 
-  override getDefaultRegistryUrls(_packageName: string): NonEmptyArray<string> {
+  override getDefaultRegistryUrls(_packageName: string): string[] {
     return ['https://api.cdnjs.com/'];
   }
 
@@ -32,9 +31,14 @@ export class CdnjsDatasource extends RegistryDatasource {
     'The source URL is determined from the `repository` field in the results.';
 
   private async _getReleases(
-    config: RegistryGetReleasesConfig,
+    config: GetReleasesConfig,
   ): Promise<ReleaseResult | null> {
     const { packageName, registryUrl } = config;
+    /* v8 ignore next -- should never happen */
+    if (!registryUrl) {
+      return null;
+    }
+
     const [library] = packageName.split('/');
 
     const url = `${registryUrl}libraries/${library}?fields=homepage,repository,versions`;
@@ -62,9 +66,7 @@ export class CdnjsDatasource extends RegistryDatasource {
     return res;
   }
 
-  getReleases(
-    config: RegistryGetReleasesConfig,
-  ): Promise<ReleaseResult | null> {
+  getReleases(config: GetReleasesConfig): Promise<ReleaseResult | null> {
     const library = config.packageName.split('/')[0];
     return withCache(
       {
@@ -78,10 +80,15 @@ export class CdnjsDatasource extends RegistryDatasource {
   }
 
   private async _getDigest(
-    config: RegistryDigestConfig,
+    config: DigestConfig,
     newValue: string,
   ): Promise<string | null> {
     const { packageName, registryUrl } = config;
+    /* v8 ignore next -- should never happen */
+    if (!registryUrl) {
+      return null;
+    }
+
     const [library] = packageName.split('/');
     const assetName = packageName.replace(`${library}/`, '');
 
@@ -93,12 +100,9 @@ export class CdnjsDatasource extends RegistryDatasource {
   }
 
   override getDigest(
-    config: RegistryDigestConfig,
-    newValue?: string,
+    config: DigestConfig,
+    newValue: string,
   ): Promise<string | null> {
-    if (!newValue) {
-      return Promise.resolve(null);
-    }
     return withCache(
       {
         namespace: `datasource-${CdnjsDatasource.id}`,

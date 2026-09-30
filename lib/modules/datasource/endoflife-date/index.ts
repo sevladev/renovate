@@ -1,15 +1,15 @@
+import { isNonEmptyString } from '@sindresorhus/is';
 import { logger } from '../../../logger/index.ts';
-import type { NonEmptyArray } from '../../../types/index.ts';
 import { joinUrlParts } from '../../../util/url.ts';
-import { RegistryDatasource } from '../datasource.ts';
-import type { RegistryGetReleasesConfig, ReleaseResult } from '../types.ts';
+import { Datasource } from '../datasource.ts';
+import type { GetReleasesConfig, ReleaseResult } from '../types.ts';
 import { datasource, registryUrl } from './common.ts';
 import { EndoflifeDateVersions } from './schema.ts';
 
-export class EndoflifeDateDatasource extends RegistryDatasource {
+export class EndoflifeDateDatasource extends Datasource {
   static readonly id = datasource;
 
-  override getDefaultRegistryUrls(_packageName: string): NonEmptyArray<string> {
+  override getDefaultRegistryUrls(_packageName: string): string[] {
     return [registryUrl];
   }
   override readonly defaultVersioning = 'loose';
@@ -25,7 +25,11 @@ export class EndoflifeDateDatasource extends RegistryDatasource {
   private async fetchReleases({
     registryUrl,
     packageName,
-  }: RegistryGetReleasesConfig): Promise<ReleaseResult | null> {
+  }: GetReleasesConfig): Promise<ReleaseResult | null> {
+    if (!isNonEmptyString(registryUrl)) {
+      return null;
+    }
+
     logger.trace(`${datasource}.getReleases(${registryUrl}, ${packageName})`);
 
     const result: ReleaseResult = {
@@ -41,12 +45,11 @@ export class EndoflifeDateDatasource extends RegistryDatasource {
     return result.releases.length ? result : null;
   }
 
-  getReleases(
-    config: RegistryGetReleasesConfig,
-  ): Promise<ReleaseResult | null> {
+  getReleases(config: GetReleasesConfig): Promise<ReleaseResult | null> {
     return this.cached(
       {
-        key: `${config.registryUrl}:${config.packageName}`,
+        // TODO: types (#22198)
+        key: `${config.registryUrl!}:${config.packageName}`,
         fallback: true,
       },
       () => this.fetchReleases(config),

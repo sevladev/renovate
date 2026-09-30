@@ -114,28 +114,24 @@ export class GoDatasource extends Datasource {
         ? newValue
         : undefined;
 
-    // `getDatasource()` resolves a registry URL for every datasource except
-    // `git-tags`, which ignores it.
-    const sourceConfig = { ...source, registryUrl: source.registryUrl! };
-
     switch (source.datasource) {
       case ForgejoTagsDatasource.id: {
-        return this.direct.forgejo.getDigest(sourceConfig, tag);
+        return this.direct.forgejo.getDigest(source, tag);
       }
       case GitTagsDatasource.id: {
-        return this.direct.git.getDigest(sourceConfig, tag);
+        return this.direct.git.getDigest(source, tag);
       }
       case GiteaTagsDatasource.id: {
-        return this.direct.gitea.getDigest(sourceConfig, tag);
+        return this.direct.gitea.getDigest(source, tag);
       }
       case GithubTagsDatasource.id: {
-        return this.direct.github.getDigest(sourceConfig, tag);
+        return this.direct.github.getDigest(source, tag);
       }
       case BitbucketTagsDatasource.id: {
-        return this.direct.bitbucket.getDigest(sourceConfig, tag);
+        return this.direct.bitbucket.getDigest(source, tag);
       }
       case GitlabTagsDatasource.id: {
-        return this.direct.gitlab.getDigest(sourceConfig, tag);
+        return this.direct.gitlab.getDigest(source, tag);
       }
       /* v8 ignore next: can never happen, makes lint happy */
       default: {
