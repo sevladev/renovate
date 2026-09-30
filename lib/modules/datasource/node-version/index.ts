@@ -1,20 +1,19 @@
-import type { NonEmptyArray } from '../../../types/index.ts';
 import { asTimestamp } from '../../../util/timestamp.ts';
 import { joinUrlParts } from '../../../util/url.ts';
 import { id as versioning } from '../../versioning/node/index.ts';
-import { RegistryDatasource } from '../datasource.ts';
-import type { RegistryGetReleasesConfig, ReleaseResult } from '../types.ts';
+import { Datasource } from '../datasource.ts';
+import type { GetReleasesConfig, ReleaseResult } from '../types.ts';
 import { datasource, defaultRegistryUrl } from './common.ts';
 import { NodeReleases } from './schema.ts';
 
-export class NodeVersionDatasource extends RegistryDatasource {
+export class NodeVersionDatasource extends Datasource {
   static readonly id = datasource;
 
   constructor() {
     super(datasource);
   }
 
-  override getDefaultRegistryUrls(_packageName: string): NonEmptyArray<string> {
+  override getDefaultRegistryUrls(_packageName: string): string[] {
     return [defaultRegistryUrl];
   }
 
@@ -29,7 +28,11 @@ export class NodeVersionDatasource extends RegistryDatasource {
 
   private async fetchReleases({
     registryUrl,
-  }: RegistryGetReleasesConfig): Promise<ReleaseResult | null> {
+  }: GetReleasesConfig): Promise<ReleaseResult | null> {
+    /* v8 ignore next -- should never happen */
+    if (!registryUrl) {
+      return null;
+    }
     const result: ReleaseResult = {
       homepage: 'https://nodejs.org',
       sourceUrl: 'https://github.com/nodejs/node',
@@ -51,11 +54,10 @@ export class NodeVersionDatasource extends RegistryDatasource {
     return result.releases.length ? result : null;
   }
 
-  getReleases(
-    config: RegistryGetReleasesConfig,
-  ): Promise<ReleaseResult | null> {
+  getReleases(config: GetReleasesConfig): Promise<ReleaseResult | null> {
     return this.cached(
       {
+        // TODO: types (#22198)
         key: `${config.registryUrl}`,
         fallback: true,
       },

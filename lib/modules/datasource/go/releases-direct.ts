@@ -81,11 +81,7 @@ export async function getDirectReleases(
     return null;
   }
 
-  // `getDatasource()` resolves a registry URL for every datasource except
-  // `git-tags`, which ignores it.
-  const sourceConfig = { ...source, registryUrl: source.registryUrl! };
-
-  const res = await tagDatasource.api.getReleases(sourceConfig);
+  const res = await tagDatasource.api.getReleases(source);
   /* v8 ignore next -- TODO: add test */
   if (!res) {
     return null;

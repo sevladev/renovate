@@ -9,7 +9,7 @@ import { getApiBaseUrl } from '../../../util/github/url.ts';
 import { hashStream } from '../../../util/hash.ts';
 import { newlineRegex, regEx } from '../../../util/regex.ts';
 import { GithubReleasesDatasource } from '../github-releases/index.ts';
-import type { RegistryDigestConfig } from '../types.ts';
+import type { DigestConfig } from '../types.ts';
 
 function inferHashAlg(digest: string): string {
   switch (digest.length) {
@@ -202,7 +202,7 @@ export class GithubReleaseAttachmentsDatasource extends GithubReleasesDatasource
       currentValue,
       currentDigest,
       registryUrl,
-    }: RegistryDigestConfig,
+    }: DigestConfig,
     newValue?: string,
   ): Promise<string | null> {
     logger.debug(

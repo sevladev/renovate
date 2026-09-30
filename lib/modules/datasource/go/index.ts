@@ -90,11 +90,7 @@ export class GoDatasource extends Datasource {
       return null;
     }
 
-    // `getDatasource()` resolves a registry URL for every datasource except
-    // `git-tags`, which ignores it.
-    const sourceConfig = { ...source, registryUrl: source.registryUrl! };
-
-    return tagDatasource.api.getDigest(sourceConfig, tag);
+    return tagDatasource.api.getDigest(source, tag);
   }
 
   override getDigest(

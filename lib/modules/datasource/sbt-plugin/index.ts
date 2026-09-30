@@ -1,17 +1,16 @@
 import { XmlDocument } from 'xmldoc';
 import { logger } from '../../../logger/index.ts';
-import type { NonEmptyArray } from '../../../types/index.ts';
 import { Http } from '../../../util/http/index.ts';
 import { regEx } from '../../../util/regex.ts';
 import { ensureTrailingSlash } from '../../../util/url.ts';
 import * as ivyVersioning from '../../versioning/ivy/index.ts';
 import { compare } from '../../versioning/maven/compare.ts';
-import { RegistryDatasource } from '../datasource.ts';
+import { Datasource } from '../datasource.ts';
 import { MAVEN_REPO } from '../maven/common.ts';
 import { downloadHttpContent } from '../maven/util.ts';
 import { extractPageLinks, getLatestVersion } from '../sbt-package/util.ts';
 import type {
-  RegistryGetReleasesConfig,
+  GetReleasesConfig,
   RegistryStrategy,
   ReleaseResult,
 } from '../types.ts';
@@ -19,10 +18,10 @@ import type {
 export const SBT_PLUGINS_REPO =
   'https://repo.scala-sbt.org/scalasbt/sbt-plugin-releases';
 
-export class SbtPluginDatasource extends RegistryDatasource {
+export class SbtPluginDatasource extends Datasource {
   static readonly id = 'sbt-plugin';
 
-  override getDefaultRegistryUrls(_packageName: string): NonEmptyArray<string> {
+  override getDefaultRegistryUrls(_packageName: string): string[] {
     return [SBT_PLUGINS_REPO, MAVEN_REPO];
   }
 
@@ -226,7 +225,12 @@ export class SbtPluginDatasource extends RegistryDatasource {
   override async getReleases({
     packageName,
     registryUrl,
-  }: RegistryGetReleasesConfig): Promise<ReleaseResult | null> {
+  }: GetReleasesConfig): Promise<ReleaseResult | null> {
+    /* v8 ignore next -- should never happen */
+    if (!registryUrl) {
+      return null;
+    }
+
     const [groupId, artifactId] = packageName.split(':');
     const groupIdSplit = groupId.split('.');
     const artifactIdSplit = artifactId.split('_');

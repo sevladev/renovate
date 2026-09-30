@@ -1,15 +1,11 @@
-import type { NonEmptyArray } from '../../../types/index.ts';
+import { isNonEmptyString } from '@sindresorhus/is';
 import { joinUrlParts } from '../../../util/url.ts';
 import * as pvpVersioning from '../../versioning/pvp/index.ts';
-import { RegistryDatasource } from '../datasource.ts';
-import type {
-  RegistryGetReleasesConfig,
-  Release,
-  ReleaseResult,
-} from '../types.ts';
+import { Datasource } from '../datasource.ts';
+import type { GetReleasesConfig, Release, ReleaseResult } from '../types.ts';
 import { HackagePackageMetadata } from './schema.ts';
 
-export class HackageDatasource extends RegistryDatasource {
+export class HackageDatasource extends Datasource {
   static readonly id = 'hackage';
 
   constructor() {
@@ -20,14 +16,15 @@ export class HackageDatasource extends RegistryDatasource {
   override supportsCustomRegistry(_packageName: string): boolean {
     return false;
   }
-  override getDefaultRegistryUrls(_packageName: string): NonEmptyArray<string> {
+  override getDefaultRegistryUrls(_packageName: string): string[] {
     return ['https://hackage.haskell.org/'];
   }
 
-  async getReleases(
-    config: RegistryGetReleasesConfig,
-  ): Promise<ReleaseResult | null> {
+  async getReleases(config: GetReleasesConfig): Promise<ReleaseResult | null> {
     const { registryUrl, packageName } = config;
+    if (!isNonEmptyString(registryUrl)) {
+      return null;
+    }
     const massagedPackageName = encodeURIComponent(packageName);
     const url = joinUrlParts(
       registryUrl,

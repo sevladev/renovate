@@ -1,19 +1,18 @@
 import { logger } from '../../../logger/index.ts';
-import type { NonEmptyArray } from '../../../types/index.ts';
-import { RegistryDatasource } from '../datasource.ts';
-import type { RegistryGetReleasesConfig, ReleaseResult } from '../types.ts';
+import { Datasource } from '../datasource.ts';
+import type { GetReleasesConfig, ReleaseResult } from '../types.ts';
 import { adoptiumRegistryUrl, getAdoptiumReleases } from './adoptium.ts';
 import { datasource, parsePackage } from './common.ts';
 import { getGraalvmReleases, graalvmRegistryUrl } from './graalvm.ts';
 
-export class JavaVersionDatasource extends RegistryDatasource {
+export class JavaVersionDatasource extends Datasource {
   static readonly id = datasource;
 
   constructor() {
     super(datasource);
   }
 
-  override getDefaultRegistryUrls(packageName: string): NonEmptyArray<string> {
+  override getDefaultRegistryUrls(packageName: string): string[] {
     return packageName.includes('oracle-graalvm')
       ? [graalvmRegistryUrl]
       : [adoptiumRegistryUrl];
@@ -26,7 +25,7 @@ export class JavaVersionDatasource extends RegistryDatasource {
   private async fetchReleases({
     registryUrl,
     packageName,
-  }: RegistryGetReleasesConfig): Promise<ReleaseResult | null> {
+  }: GetReleasesConfig): Promise<ReleaseResult | null> {
     const pkgConfig = parsePackage(packageName);
     logger.trace(
       { registryUrl, packageName, pkgConfig },
@@ -35,7 +34,12 @@ export class JavaVersionDatasource extends RegistryDatasource {
 
     try {
       if (pkgConfig.vendor === 'oracle-graalvm') {
-        return await getGraalvmReleases(this.http, pkgConfig, registryUrl);
+        const effectiveRegistryUrl = registryUrl ?? graalvmRegistryUrl;
+        return await getGraalvmReleases(
+          this.http,
+          pkgConfig,
+          effectiveRegistryUrl,
+        );
       }
 
       // Default to Adoptium
@@ -45,9 +49,7 @@ export class JavaVersionDatasource extends RegistryDatasource {
     }
   }
 
-  getReleases(
-    config: RegistryGetReleasesConfig,
-  ): Promise<ReleaseResult | null> {
+  getReleases(config: GetReleasesConfig): Promise<ReleaseResult | null> {
     return this.cached(
       {
         key: `${config.registryUrl}:${config.packageName}`,

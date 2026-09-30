@@ -1,15 +1,10 @@
 import urlJoin from 'url-join';
-import type { NonEmptyArray } from '../../../types/index.ts';
 import { withCache } from '../../../util/cache/package/with-cache.ts';
-import { RegistryDatasource } from '../datasource.ts';
-import type {
-  RegistryGetReleasesConfig,
-  Release,
-  ReleaseResult,
-} from '../types.ts';
+import { Datasource } from '../datasource.ts';
+import type { GetReleasesConfig, Release, ReleaseResult } from '../types.ts';
 import { BuildpacksRegistryResponse } from './schema.ts';
 
-export class BuildpacksRegistryDatasource extends RegistryDatasource {
+export class BuildpacksRegistryDatasource extends Datasource {
   static readonly id = 'buildpacks-registry';
 
   constructor() {
@@ -20,7 +15,7 @@ export class BuildpacksRegistryDatasource extends RegistryDatasource {
     return false;
   }
 
-  override getDefaultRegistryUrls(_packageName: string): NonEmptyArray<string> {
+  override getDefaultRegistryUrls(_packageName: string): string[] {
     return ['https://registry.buildpacks.io'];
   }
 
@@ -32,9 +27,14 @@ export class BuildpacksRegistryDatasource extends RegistryDatasource {
     'The source URL is determined from the `source_code_url` field of the release object in the results.';
 
   private async _getReleases(
-    config: RegistryGetReleasesConfig,
+    config: GetReleasesConfig,
   ): Promise<ReleaseResult | null> {
     const { packageName, registryUrl } = config;
+    /* v8 ignore next -- should never happen */
+    if (!registryUrl) {
+      return null;
+    }
+
     const url = urlJoin(registryUrl, 'api', 'v1', 'buildpacks', packageName);
 
     const body = await this.fetchJsonOrNull(url, BuildpacksRegistryResponse);
@@ -54,9 +54,7 @@ export class BuildpacksRegistryDatasource extends RegistryDatasource {
     return res;
   }
 
-  getReleases(
-    config: RegistryGetReleasesConfig,
-  ): Promise<ReleaseResult | null> {
+  getReleases(config: GetReleasesConfig): Promise<ReleaseResult | null> {
     return withCache(
       {
         namespace: `datasource-${BuildpacksRegistryDatasource.id}`,
