@@ -121,9 +121,9 @@ export abstract class GitDatasource extends Datasource {
 
   /**
    * One release per distinct ref value of the datasource's
-   * {@link GitDatasource.refTypes}, in the order `git ls-remote` returned
-   * them. A value carried by several ref types, such as a branch and a tag of
-   * the same name, keeps the hash of the first ref that has it.
+   * {@link GitDatasource.refTypes}. A value carried by several ref types, such
+   * as a branch and a tag of the same name, keeps the hash of the first ref that
+   * has it.
    */
   protected async getRefReleases({
     packageName,
@@ -133,22 +133,25 @@ export abstract class GitDatasource extends Datasource {
       return null;
     }
 
-    const releases = new Map<string, Release>();
+    const releases: Record<string, Release> = {};
     for (const ref of rawRefs) {
-      if (!this.refTypes.includes(ref.type) || releases.has(ref.value)) {
+      if (
+        !this.refTypes.includes(ref.type) ||
+        Object.hasOwn(releases, ref.value)
+      ) {
         continue;
       }
 
-      releases.set(ref.value, {
+      releases[ref.value] = {
         version: ref.value,
         gitRef: ref.value,
         newDigest: ref.hash,
-      });
+      };
     }
 
     return {
       sourceUrl: this.getSourceUrl(packageName),
-      releases: [...releases.values()],
+      releases: Object.values(releases),
     };
   }
 
